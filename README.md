@@ -6,6 +6,8 @@ A free quote downloader library and cli
 
 Downloads daily historical price quotes from Yahoo and daily/intraday data from various api's. Written in pure Go. No external dependencies. Now downloads crypto coin historical data from various exchanges.
 
+- Update: 02/15/2024 - Major update: updated to Go 1.22, removed bittrex/binance support, fixed nasdaq/tiingo markets
+
 - Update: 11/15/2021 - Removed obsolete markets, converted to go modules
 
 - Update: 7/18/2021 - Removed obsolete Google support
@@ -28,7 +30,7 @@ Downloads daily historical price quotes from Yahoo and daily/intraday data from 
 
 Still very much in alpha mode. Expect bugs and API changes. Comments/suggestions/pull requests welcome!
 
-Copyright 2018 Mark Chenoweth
+Copyright 2024 Mark Chenoweth
 
 Install CLI utility (quote) with:
 
@@ -52,7 +54,7 @@ Options:
   -infile=<filename>   list of symbols to download
   -outfile=<filename>  output filename
   -period=<period>     1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|d|3d|w|m [default=d]
-  -source=<source>     yahoo|tiingo|tiingo-crypto|coinbase|bittrex|binance [default=yahoo]
+  -source=<source>     yahoo|tiingo|tiingo-crypto|coinbase [default=yahoo]
   -token=<tiingo_tok>  tingo api token [default=TIINGO_API_TOKEN]
   -format=<format>     (csv|json|hs|ami) [default=csv]
   -adjust=<bool>       adjust yahoo prices [default=true]
@@ -63,10 +65,10 @@ Options:
 Note: not all periods work with all sources
 
 Valid markets:
-etfs:       etf
-crypto:     bittrex-btc,bittrex-eth,bittrex-usdt,
-            binance-bnb,binance-btc,binance-eth,binance-usdt,
-            coinbase
+etf,nasdaq,amex,nyse,megacap,largecap,midcap,smallcap,microcap,nanocap,
+telecommunications,health_care,finance,real_estate,consumer_discretionary,
+consumer_staples,industrials,basic_materials,energy,utilities
+coinbase,tiingo-usd,tiingo-btc,tiingo-eth
 ```
 
 ## CLI Examples
@@ -89,9 +91,6 @@ quote etf
 
 # download fresh etf list and 5 years of etf data all in one file
 quote etf && quote -all=true -outfile=etf.csv -infile=etf.txt 
-
-# download hourly data for all Bittrex BTC markets all in one file
-quote bittrex-btc && quote -source=bittrex -all=true -period=1h -outfile=bittrex-btc.csv -infile=bittrex-btc.txt 
 ```
 
 ## Install library

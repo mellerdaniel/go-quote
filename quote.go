@@ -2,9 +2,9 @@
 Package quote is free quote downloader library and cli
 
 Downloads daily/weekly/monthly historical price quotes from Yahoo
-and daily/intraday data from Tiingo/Bittrex/Binance
+and daily/intraday data from Tiingo
 
-Copyright 2019 Mark Chenoweth
+Copyright 2024 Mark Chenoweth
 Licensed under terms of MIT license (see LICENSE)
 */
 package quote
@@ -16,14 +16,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/textproto"
 	"net/url"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -92,7 +91,7 @@ var Log *log.Logger
 var Delay time.Duration
 
 func init() {
-	Log = log.New(ioutil.Discard, "quote: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Log = log.New(io.Discard, "quote: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Delay = 100
 }
 
@@ -190,7 +189,7 @@ func (q Quote) WriteCSV(filename string) error {
 		}
 	}
 	csv := q.CSV()
-	return ioutil.WriteFile(filename, []byte(csv), 0644)
+	return os.WriteFile(filename, []byte(csv), 0644)
 }
 
 // WriteAmibroker - write Quote struct to csv file
@@ -203,7 +202,7 @@ func (q Quote) WriteAmibroker(filename string) error {
 		}
 	}
 	csv := q.Amibroker()
-	return ioutil.WriteFile(filename, []byte(csv), 0644)
+	return os.WriteFile(filename, []byte(csv), 0644)
 }
 
 // WriteHighstock - write Quote struct to Highstock json format
@@ -216,7 +215,7 @@ func (q Quote) WriteHighstock(filename string) error {
 		}
 	}
 	csv := q.Highstock()
-	return ioutil.WriteFile(filename, []byte(csv), 0644)
+	return os.WriteFile(filename, []byte(csv), 0644)
 }
 
 // NewQuoteFromCSV - parse csv quote string into Quote structure
@@ -267,7 +266,7 @@ func NewQuoteFromCSVDateFormat(symbol, csv string, format string) (Quote, error)
 
 // NewQuoteFromCSVFile - parse csv quote file into Quote structure
 func NewQuoteFromCSVFile(symbol, filename string) (Quote, error) {
-	csv, err := ioutil.ReadFile(filename)
+	csv, err := os.ReadFile(filename)
 	if err != nil {
 		return NewQuote("", 0), err
 	}
@@ -277,7 +276,7 @@ func NewQuoteFromCSVFile(symbol, filename string) (Quote, error) {
 // NewQuoteFromCSVFileDateFormat - parse csv quote file into Quote structure
 // with specified DateTime format
 func NewQuoteFromCSVFileDateFormat(symbol, filename string, format string) (Quote, error) {
-	csv, err := ioutil.ReadFile(filename)
+	csv, err := os.ReadFile(filename)
 	if err != nil {
 		return NewQuote("", 0), err
 	}
@@ -301,7 +300,7 @@ func (q Quote) WriteJSON(filename string, indent bool) error {
 		filename = q.Symbol + ".json"
 	}
 	json := q.JSON(indent)
-	return ioutil.WriteFile(filename, []byte(json), 0644)
+	return os.WriteFile(filename, []byte(json), 0644)
 
 }
 
@@ -317,7 +316,7 @@ func NewQuoteFromJSON(jsn string) (Quote, error) {
 
 // NewQuoteFromJSONFile - parse json quote string into Quote structure
 func NewQuoteFromJSONFile(filename string) (Quote, error) {
-	jsn, err := ioutil.ReadFile(filename)
+	jsn, err := os.ReadFile(filename)
 	if err != nil {
 		return NewQuote("", 0), err
 	}
@@ -405,7 +404,7 @@ func (q Quotes) WriteCSV(filename string) error {
 	}
 	csv := q.CSV()
 	ba := []byte(csv)
-	return ioutil.WriteFile(filename, ba, 0644)
+	return os.WriteFile(filename, ba, 0644)
 }
 
 // WriteAmibroker - write Quotes structure to file
@@ -415,7 +414,7 @@ func (q Quotes) WriteAmibroker(filename string) error {
 	}
 	csv := q.Amibroker()
 	ba := []byte(csv)
-	return ioutil.WriteFile(filename, ba, 0644)
+	return os.WriteFile(filename, ba, 0644)
 }
 
 // NewQuotesFromCSV - parse csv quote string into Quotes array
@@ -451,7 +450,7 @@ func NewQuotesFromCSV(csv string) (Quotes, error) {
 
 // NewQuotesFromCSVFile - parse csv quote file into Quotes array
 func NewQuotesFromCSVFile(filename string) (Quotes, error) {
-	csv, err := ioutil.ReadFile(filename)
+	csv, err := os.ReadFile(filename)
 	if err != nil {
 		return Quotes{}, err
 	}
@@ -475,7 +474,7 @@ func (q Quotes) WriteJSON(filename string, indent bool) error {
 		filename = "quotes.json"
 	}
 	jsn := q.JSON(indent)
-	return ioutil.WriteFile(filename, []byte(jsn), 0644)
+	return os.WriteFile(filename, []byte(jsn), 0644)
 }
 
 // WriteHighstock - write Quote struct to json file in Highstock format
@@ -484,7 +483,7 @@ func (q Quotes) WriteHighstock(filename string) error {
 		filename = "quotes.json"
 	}
 	hc := q.Highstock()
-	return ioutil.WriteFile(filename, []byte(hc), 0644)
+	return os.WriteFile(filename, []byte(hc), 0644)
 }
 
 // NewQuotesFromJSON - parse json quote string into Quote structure
@@ -499,7 +498,7 @@ func NewQuotesFromJSON(jsn string) (Quotes, error) {
 
 // NewQuotesFromJSONFile - parse json quote string into Quote structure
 func NewQuotesFromJSONFile(filename string) (Quotes, error) {
-	jsn, err := ioutil.ReadFile(filename)
+	jsn, err := os.ReadFile(filename)
 	if err != nil {
 		return Quotes{}, err
 	}
@@ -722,7 +721,7 @@ func tiingoDaily(symbol string, from, to time.Time, token string) (Quote, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		contents, _ := ioutil.ReadAll(resp.Body)
+		contents, _ := io.ReadAll(resp.Body)
 		err = json.Unmarshal(contents, &tiingo)
 		if err != nil {
 			Log.Printf("tiingo error: %v\n", err)
@@ -816,7 +815,7 @@ func tiingoCrypto(symbol string, from, to time.Time, period Period, token string
 	}
 	defer resp.Body.Close()
 
-	contents, _ := ioutil.ReadAll(resp.Body)
+	contents, _ := io.ReadAll(resp.Body)
 	err = json.Unmarshal(contents, &crypto)
 	if err != nil {
 		Log.Printf("tiingo crypto symbol '%s' error: %v\n", symbol, err)
@@ -954,7 +953,7 @@ func NewQuoteFromCoinbase(symbol, startDate, endDate string, period Period) (Quo
 		}
 		defer resp.Body.Close()
 
-		contents, _ := ioutil.ReadAll(resp.Body)
+		contents, _ := io.ReadAll(resp.Body)
 
 		type cb [6]float64
 		var bars []cb
@@ -1034,311 +1033,6 @@ func NewQuotesFromCoinbaseSyms(symbols []string, startDate, endDate string, peri
 	return quotes, nil
 }
 
-// NewQuoteFromBittrex - Biitrex historical prices for a symbol
-func NewQuoteFromBittrex(symbol string, period Period) (Quote, error) {
-
-	var bittrexPeriod string
-
-	switch period {
-	case Min1:
-		bittrexPeriod = "oneMin"
-	case Min5:
-		bittrexPeriod = "fiveMin"
-	case Min30:
-		bittrexPeriod = "thirtyMin"
-	case Min60:
-		bittrexPeriod = "hour"
-	case Daily:
-		bittrexPeriod = "day"
-	default:
-		bittrexPeriod = "day"
-	}
-
-	var quote Quote
-	quote.Symbol = symbol
-
-	url := fmt.Sprintf(
-		"https://bittrex.com/Api/v2.0/pub/market/GetTicks?marketName=%s&tickInterval=%s",
-		symbol,
-		bittrexPeriod)
-
-	client := &http.Client{Timeout: ClientTimeout}
-	req, _ := http.NewRequest("GET", url, nil)
-	resp, err := client.Do(req)
-
-	if err != nil {
-		Log.Printf("bittrex error: %v\n", err)
-		return NewQuote("", 0), err
-	}
-	defer resp.Body.Close()
-
-	contents, _ := ioutil.ReadAll(resp.Body)
-
-	type OHLC struct {
-		O  float64
-		H  float64
-		L  float64
-		C  float64
-		V  float64
-		T  string
-		BV float64
-	}
-	type Result struct {
-		Success bool   `json:"succes"`
-		Message string `json:"message"`
-		OHLC    []OHLC `json:"result"`
-	}
-
-	var result Result
-
-	err = json.Unmarshal(contents, &result)
-	if err != nil {
-		Log.Printf("bittrex error: %v\n", err)
-	}
-
-	numrows := len(result.OHLC)
-	q := NewQuote(symbol, numrows)
-
-	for bar := 0; bar < numrows; bar++ {
-		q.Date[bar], _ = time.Parse("2006-01-02T15:04:05", result.OHLC[bar].T) //"2017-11-28T16:50:00"
-		q.Open[bar] = result.OHLC[bar].O
-		q.High[bar] = result.OHLC[bar].H
-		q.Low[bar] = result.OHLC[bar].L
-		q.Close[bar] = result.OHLC[bar].C
-		q.Volume[bar] = result.OHLC[bar].V
-	}
-	quote.Date = append(quote.Date, q.Date...)
-	quote.Open = append(quote.Open, q.Open...)
-	quote.High = append(quote.High, q.High...)
-	quote.Low = append(quote.Low, q.Low...)
-	quote.Close = append(quote.Close, q.Close...)
-	quote.Volume = append(quote.Volume, q.Volume...)
-
-	return quote, nil
-}
-
-// NewQuotesFromBittrex - create a list of prices from symbols in file
-func NewQuotesFromBittrex(filename string, period Period) (Quotes, error) {
-
-	quotes := Quotes{}
-	inFile, err := os.Open(filename)
-	if err != nil {
-		return quotes, err
-	}
-	defer inFile.Close()
-	scanner := bufio.NewScanner(inFile)
-	scanner.Split(bufio.ScanLines)
-
-	for scanner.Scan() {
-		sym := scanner.Text()
-		quote, err := NewQuoteFromBittrex(sym, period)
-		if err == nil {
-			quotes = append(quotes, quote)
-		} else {
-			Log.Println("error downloading " + sym)
-		}
-		time.Sleep(Delay * time.Millisecond)
-	}
-	return quotes, nil
-}
-
-// NewQuotesFromBittrexSyms - create a list of prices from symbols in string array
-func NewQuotesFromBittrexSyms(symbols []string, period Period) (Quotes, error) {
-
-	quotes := Quotes{}
-	for _, symbol := range symbols {
-		quote, err := NewQuoteFromBittrex(symbol, period)
-		if err == nil {
-			quotes = append(quotes, quote)
-		} else {
-			Log.Println("error downloading " + symbol)
-		}
-		time.Sleep(Delay * time.Millisecond)
-	}
-	return quotes, nil
-}
-
-// NewQuoteFromBinance - Binance historical prices for a symbol
-func NewQuoteFromBinance(symbol string, startDate, endDate string, period Period) (Quote, error) {
-
-	start := ParseDateString(startDate)
-	end := ParseDateString(endDate)
-
-	var interval string
-	var granularity int // seconds
-
-	switch period {
-	case Min1:
-		interval = "1m"
-		granularity = 60
-	case Min3:
-		interval = "3m"
-		granularity = 3 * 60
-	case Min5:
-		interval = "5m"
-		granularity = 5 * 60
-	case Min15:
-		interval = "15m"
-		granularity = 15 * 60
-	case Min30:
-		interval = "30m"
-		granularity = 30 * 60
-	case Min60:
-		interval = "1h"
-		granularity = 60 * 60
-	case Hour2:
-		interval = "2h"
-		granularity = 2 * 60 * 60
-	case Hour4:
-		interval = "4h"
-		granularity = 4 * 60 * 60
-	case Hour8:
-		interval = "8h"
-		granularity = 8 * 60 * 60
-	case Hour12:
-		interval = "12h"
-		granularity = 12 * 60 * 60
-	case Daily:
-		interval = "1d"
-		granularity = 24 * 60 * 60
-	case Day3:
-		interval = "3d"
-		granularity = 3 * 24 * 60 * 60
-	case Weekly:
-		interval = "1w"
-		granularity = 7 * 24 * 60 * 60
-	case Monthly:
-		interval = "1M"
-		granularity = 30 * 24 * 60 * 60
-	default:
-		interval = "1d"
-		granularity = 24 * 60 * 60
-	}
-
-	var quote Quote
-	quote.Symbol = symbol
-
-	maxBars := 500
-	var step time.Duration
-	step = time.Second * time.Duration(granularity)
-
-	startBar := start
-	endBar := startBar.Add(time.Duration(maxBars) * step)
-
-	if endBar.After(end) {
-		endBar = end
-	}
-
-	for startBar.Before(end) {
-
-		url := fmt.Sprintf(
-			"https://api.binance.com/api/v1/klines?symbol=%s&interval=%s&startTime=%d&endTime=%d",
-			strings.ToUpper(symbol),
-			interval,
-			startBar.UnixNano()/1000000,
-			endBar.UnixNano()/1000000)
-		//log.Println(url)
-		client := &http.Client{Timeout: ClientTimeout}
-		req, _ := http.NewRequest("GET", url, nil)
-		resp, err := client.Do(req)
-
-		if err != nil {
-			Log.Printf("binance error: %v\n", err)
-			return NewQuote("", 0), err
-		}
-		defer resp.Body.Close()
-
-		contents, _ := ioutil.ReadAll(resp.Body)
-
-		type binance [12]interface{}
-		var bars []binance
-		err = json.Unmarshal(contents, &bars)
-		if err != nil {
-			Log.Printf("binance error: %v\n", err)
-		}
-
-		numrows := len(bars)
-		q := NewQuote(symbol, numrows)
-		//fmt.Printf("numrows=%d, bars=%v\n", numrows, bars)
-
-		/*
-			0       OpenTime                 int64
-			1 			Open                     float64
-			2 			High                     float64
-			3		 	Low                      float64
-			4 			Close                    float64
-			5 			Volume                   float64
-			6 			CloseTime                int64
-			7 			QuoteAssetVolume         float64
-			8 			NumTrades                int64
-			9 			TakerBuyBaseAssetVolume  float64
-			10 			TakerBuyQuoteAssetVolume float64
-			11 			Ignore                   float64
-		*/
-
-		for bar := 0; bar < numrows; bar++ {
-			q.Date[bar] = time.Unix(int64(bars[bar][6].(float64))/1000, 0)
-			q.Open[bar], _ = strconv.ParseFloat(bars[bar][1].(string), 64)
-			q.High[bar], _ = strconv.ParseFloat(bars[bar][2].(string), 64)
-			q.Low[bar], _ = strconv.ParseFloat(bars[bar][3].(string), 64)
-			q.Close[bar], _ = strconv.ParseFloat(bars[bar][4].(string), 64)
-			q.Volume[bar], _ = strconv.ParseFloat(bars[bar][5].(string), 64)
-		}
-		quote.Date = append(quote.Date, q.Date...)
-		quote.Open = append(quote.Open, q.Open...)
-		quote.High = append(quote.High, q.High...)
-		quote.Low = append(quote.Low, q.Low...)
-		quote.Close = append(quote.Close, q.Close...)
-		quote.Volume = append(quote.Volume, q.Volume...)
-
-		time.Sleep(time.Second)
-		startBar = endBar.Add(step)
-		endBar = startBar.Add(time.Duration(maxBars) * step)
-
-	}
-	return quote, nil
-}
-
-// NewQuotesFromBinance - create a list of prices from symbols in file
-func NewQuotesFromBinance(filename string, startDate, endDate string, period Period) (Quotes, error) {
-	quotes := Quotes{}
-	inFile, err := os.Open(filename)
-	if err != nil {
-		return quotes, err
-	}
-	defer inFile.Close()
-	scanner := bufio.NewScanner(inFile)
-	scanner.Split(bufio.ScanLines)
-
-	for scanner.Scan() {
-		sym := scanner.Text()
-		quote, err := NewQuoteFromBinance(sym, startDate, endDate, period)
-		if err == nil {
-			quotes = append(quotes, quote)
-		} else {
-			Log.Println("error downloading " + sym)
-		}
-		time.Sleep(Delay * time.Millisecond)
-	}
-	return quotes, nil
-}
-
-// NewQuotesFromBinanceSyms - create a list of prices from symbols in string array
-func NewQuotesFromBinanceSyms(symbols []string, startDate, endDate string, period Period) (Quotes, error) {
-
-	quotes := Quotes{}
-	for _, symbol := range symbols {
-		quote, err := NewQuoteFromBinance(symbol, startDate, endDate, period)
-		if err == nil {
-			quotes = append(quotes, quote)
-		} else {
-			Log.Println("error downloading " + symbol)
-		}
-		time.Sleep(Delay * time.Millisecond)
-	}
-	return quotes, nil
-}
-
 // NewEtfList - download a list of etf symbols to an array of strings
 func NewEtfList() ([]string, error) {
 
@@ -1371,42 +1065,35 @@ func NewEtfFile(filename string) error {
 		return err
 	}
 	ba := []byte(strings.Join(etfs, "\n"))
-	return ioutil.WriteFile(filename, ba, 0644)
+	return os.WriteFile(filename, ba, 0644)
 }
 
 // ValidMarkets list of markets that can be downloaded
-var ValidMarkets = [...]string{"etf",
-	//"nasdaq",
-	//"nyse",
-	//"amex",
-	//"megacap",
-	//"largecap",
-	//"midcap",
-	//"smallcap",
-	//"microcap",
-	//"nanocap",
-	//"basicindustries",
-	//"capitalgoods",
-	//"consumerdurables",
-	//"consumernondurable",
-	//"consumerservices",
-	//"energy",
-	//"finance",
-	//"healthcare",
-	//"miscellaneous",
-	//"utilities",
-	//"technology",
-	//"transportation",
-	"bittrex-btc",
-	"bittrex-eth",
-	"bittrex-usdt",
-	"binance-bnb",
-	"binance-btc",
-	"binance-eth",
-	"binance-usdt",
-	//"tiingo-btc",
-	//"tiingo-eth",
-	//"tiingo-usd",
+var ValidMarkets = [...]string{
+	"etf",
+	"nasdaq",
+	"amex",
+	"nyse",
+	"megacap",
+	"largecap",
+	"midcap",
+	"smallcap",
+	"microcap",
+	"nanocap",
+	"telecommunications",
+	"health_care",
+	"finance",
+	"real_estate",
+	"consumer_discretionary",
+	"consumer_staples",
+	"industrials",
+	"basic_materials",
+	"energy",
+	"utilities",
+	"technology",
+	"tiingo-btc",
+	"tiingo-eth",
+	"tiingo-usd",
 	"coinbase",
 }
 
@@ -1435,76 +1122,60 @@ func NewMarketList(market string) ([]string, error) {
 	}
 	var url string
 	switch market {
-	// case "nasdaq":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nasdaq&render=download"
-	// case "amex":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=amex&render=download"
-	// case "nyse":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=nyse&render=download"
-	// case "megacap":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?marketcap=Mega-cap&render=download"
-	// case "largecap":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?marketcap=Large-cap&render=download"
-	// case "midcap":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?marketcap=Mid-cap&render=download"
-	// case "smallcap":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?marketcap=Small-cap&render=download"
-	// case "microcap":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?marketcap=Micro-cap&render=download"
-	// case "nanocap":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?marketcap=Nano-cap&render=download"
-	// case "basicindustries":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Basic%20Industries&render=download"
-	// case "capitalgoods":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Capital%20Goods&render=download"
-	// case "consumerdurables":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Consumer%20Durables&render=download"
-	// case "consumernondurable":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Consumer%20Non-Durables&render=download"
-	// case "consumerservices":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Consumer%20Services&render=download"
-	// case "energy":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Energy&render=download"
-	// case "finance":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Finance&render=download"
-	// case "healthcare":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Health-Care&render=download"
-	// case "miscellaneous":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Miscellaneous&render=download"
-	// case "utilities":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Utilities&render=download"
-	// case "technology":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Technology&render=download"
-	// case "transportation":
-	// 	url = "http://old.nasdaq.com/screening/companies-by-industry.aspx?industry=Transportation&render=download"
-	case "bittrex-btc":
-		url = "https://bittrex.com/Api/v2.0/pub/markets/getmarketsummaries"
-	case "bittrex-eth":
-		url = "https://bittrex.com/Api/v2.0/pub/markets/getmarketsummaries"
-	case "bittrex-usdt":
-		url = "https://bittrex.com/Api/v2.0/pub/markets/getmarketsummaries"
-	case "binance-bnb":
-		url = "https://api.binance.com/api/v1/exchangeInfo"
-	case "binance-btc":
-		url = "https://api.binance.com/api/v1/exchangeInfo"
-	case "binance-eth":
-		url = "https://api.binance.com/api/v1/exchangeInfo"
-	case "binance-usdt":
-		url = "https://api.binance.com/api/v1/exchangeInfo"
-	//case "tiingo-btc":
-	//	url = fmt.Sprintf("https://api.tiingo.com/tiingo/crypto?token=%s", os.Getenv("TIINGO_API_TOKEN"))
-	//case "tiingo-eth":
-	//	url = fmt.Sprintf("https://api.tiingo.com/tiingo/crypto?token=%s", os.Getenv("TIINGO_API_TOKEN"))
-	//case "tiingo-usd":
-	//	url = fmt.Sprintf("https://api.tiingo.com/tiingo/crypto?token=%s", os.Getenv("TIINGO_API_TOKEN"))
+	case "nasdaq":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&exchange=NASDAQ"
+	case "amex":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&exchange=AMEX"
+	case "nyse":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&exchange=NYSE"
+	case "megacap":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&marketcap=mega"
+	case "largecap":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&marketcap=large"
+	case "midcap":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&marketcap=mid"
+	case "smallcap":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&marketcap=small"
+	case "microcap":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&marketcap=micro"
+	case "nanocap":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&marketcap=nano"
+	case "telecommunications":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=telecommunications"
+	case "health_care":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=health_care"
+	case "finance":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=finance"
+	case "real_estate":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=real_estate"
+	case "consumer_discretionary":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=consumer_discretionary"
+	case "consumer_staples":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=consumer_staples"
+	case "industrials":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=industrials"
+	case "basic_materials":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=basic_materials"
+	case "energy":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=energy"
+	case "utilities":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=utilities"
+	case "technology":
+		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&sector=technology"
+	case "tiingo-btc":
+		url = fmt.Sprintf("https://api.tiingo.com/tiingo/crypto?token=%s", os.Getenv("TIINGO_API_TOKEN"))
+	case "tiingo-eth":
+		url = fmt.Sprintf("https://api.tiingo.com/tiingo/crypto?token=%s", os.Getenv("TIINGO_API_TOKEN"))
+	case "tiingo-usd":
+		url = fmt.Sprintf("https://api.tiingo.com/tiingo/crypto?token=%s", os.Getenv("TIINGO_API_TOKEN"))
 	case "coinbase":
 		url = "https://api.pro.coinbase.com/products"
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Add("User-Agent", "markcheno/go-quote")
-	req.Header.Add("Accept", "application/xml")
-	req.Header.Add("Content-Type", "application/xml; charset=utf-8")
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -1512,203 +1183,29 @@ func NewMarketList(market string) ([]string, error) {
 	}
 	defer resp.Body.Close()
 
-	if strings.HasPrefix(market, "bittrex") {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
-		newStr := buf.String()
-		return getBittrexMarket(market, newStr)
-	}
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	newStr := buf.String()
 
-	if strings.HasPrefix(market, "binance") {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
-		newStr := buf.String()
-		return getBinanceMarket(market, newStr)
+	if strings.HasPrefix(market, "tiingo") {
+		return getTiingoCryptoMarket(market, newStr)
 	}
-
-	//if strings.HasPrefix(market, "tiingo") {
-	//	buf := new(bytes.Buffer)
-	//	buf.ReadFrom(resp.Body)
-	//	newStr := buf.String()
-	//	return getTiingoCryptoMarket(market, newStr)
-	//}
 
 	if strings.HasPrefix(market, "coinbase") {
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
-		newStr := buf.String()
 		return getCoinbaseMarket(market, newStr)
 	}
 
-	var csvdata [][]string
-	reader := csv.NewReader(resp.Body)
-	csvdata, err = reader.ReadAll()
-	if err != nil {
-		return symbols, err
-	}
-
-	r, _ := regexp.Compile("^[a-z]+$")
-	for row := 1; row < len(csvdata); row++ {
-		sym := strings.TrimSpace(strings.ToLower(csvdata[row][0]))
-		if r.MatchString(sym) {
-			symbols = append(symbols, sym)
-		}
-	}
-	sort.Strings(symbols)
-	return symbols, nil
+	// must be nasdaq market
+	return getNasdaqMarket(market, newStr)
 }
 
-func getBinanceMarket(market, rawdata string) ([]string, error) {
+func getTiingoCryptoMarket(market, rawdata string) ([]string, error) {
 
 	type Symbol struct {
-		Symbol             string `json:"symbol"`
-		Status             string `json:"status"`
-		BaseAsset          string `json:"baseAsset"`
-		BaseAssetPrecision int    `json:"baseAssetPrecision"`
-		QuoteAsset         string `json:"quoteAsset"`
-		QuotePrecision     int    `json:"quotePrecision"`
-	}
-
-	type Markets struct {
-		Symbols []Symbol `json:"symbols"`
-	}
-
-	var markets Markets
-	err := json.Unmarshal([]byte(rawdata), &markets)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	var symbols []string
-	for _, mkt := range markets.Symbols {
-		if strings.HasSuffix(market, "bnb") && mkt.QuoteAsset == "BNB" {
-			symbols = append(symbols, mkt.Symbol)
-		} else if strings.HasSuffix(market, "btc") && mkt.QuoteAsset == "BTC" {
-			symbols = append(symbols, mkt.Symbol)
-		} else if strings.HasSuffix(market, "eth") && mkt.QuoteAsset == "ETH" {
-			symbols = append(symbols, mkt.Symbol)
-		} else if strings.HasSuffix(market, "usdt") && mkt.QuoteAsset == "USDT" {
-			symbols = append(symbols, mkt.Symbol)
-		}
-	}
-
-	return symbols, err
-}
-
-// func getTiingoCryptoMarket(market, rawdata string) ([]string, error) {
-
-// 	type Symbol struct {
-// 		Ticker        string `json:"ticker"`
-// 		BaseCurrency  string `json:"baseCurrency"`
-// 		QuoteCurrency string `json:"quoteCurrency"`
-// 		Name          string `json:"name"`
-// 		Description   string `json:"description"`
-// 	}
-
-// 	var markets []Symbol
-
-// 	err := json.Unmarshal([]byte(rawdata), &markets)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-
-// 	var symbols []string
-// 	for _, mkt := range markets {
-// 		if strings.HasSuffix(market, "btc") && mkt.QuoteCurrency == "btc" {
-// 			symbols = append(symbols, mkt.Ticker)
-// 		} else if strings.HasSuffix(market, "eth") && mkt.QuoteCurrency == "eth" {
-// 			symbols = append(symbols, mkt.Ticker)
-// 		} else if strings.HasSuffix(market, "usd") && mkt.QuoteCurrency == "usd" {
-// 			symbols = append(symbols, mkt.Ticker)
-// 		}
-// 	}
-
-// 	return symbols, err
-// }
-
-func getBittrexMarket(market, rawdata string) ([]string, error) {
-
-	type Market struct {
-		MarketCurrency     string
-		BaseCurrency       string
-		MarketCurrencyLong string
-		BaseCurrencyLong   string
-		MinTradeSize       float64
-		MarketName         string
-		IsActive           bool
-		Created            string
-		Notice             string
-		IsSponsored        bool
-		LogoURL            string `json:"LogoUrl"`
-	}
-
-	type Summary struct {
-		MarketName     string
-		High           float64
-		Low            float64
-		Volume         float64
-		Last           float64
-		BaseVolume     float64
-		TimeStamp      string
-		Bid            float64
-		Ask            float64
-		OpenBuyOrders  int64
-		OpenSellOrders int64
-		PrevDay        float64
-		Created        string
-	}
-
-	type Result struct {
-		Market     Market
-		Summary    Summary
-		IsVerified bool
-	}
-
-	type Markets struct {
-		Success bool     `json:"success"`
-		Message string   `json:"message"`
-		Result  []Result `json:"result"`
-	}
-
-	var markets Markets
-	err := json.Unmarshal([]byte(rawdata), &markets)
-	if err != nil {
-		fmt.Println(err)
-	}
-	var symbols []string
-	for _, mkt := range markets.Result {
-		if strings.HasSuffix(market, "btc") && mkt.Market.BaseCurrency == "BTC" {
-			symbols = append(symbols, mkt.Market.MarketName)
-		} else if strings.HasSuffix(market, "eth") && mkt.Market.BaseCurrency == "ETH" {
-			symbols = append(symbols, mkt.Market.MarketName)
-		} else if strings.HasSuffix(market, "usdt") && mkt.Market.BaseCurrency == "USDT" {
-			symbols = append(symbols, mkt.Market.MarketName)
-		}
-	}
-
-	return symbols, err
-}
-
-func getCoinbaseMarket(market, rawdata string) ([]string, error) {
-
-	type Symbol struct {
-		ID             string `json:"id"`
-		BaseCurrency   string `json:"base_currency"`
-		QuoteCurrency  string `json:"quote_currency"`
-		BaseMinSize    string `json:"base_min_size"`
-		BaseMaxSize    string `json:"base_max_size"`
-		BaseIncrement  string `json:"base_increment"`
-		QuoteIncrement string `json:"quote_increment"`
-		DisplayName    string `json:"display_name"`
-		Status         string `json:"status"`
-		MarginEnabled  bool   `json:"margin_enabled"`
-		StatusMessage  string `json:"status_message"`
-		MinMarketFunds string `json:"min_market_funds"`
-		MaxMarketFunds string `json:"max_market_funds"`
-		PostOnly       bool   `json:"post_only"`
-		LimitOnly      bool   `json:"limit_only"`
-		CancelOnly     bool   `json:"cancel_only"`
-		Accessible     bool   `json:"accessible"`
+		Ticker        string `json:"ticker"`
+		Name          string `json:"name"`
+		BaseCurrency  string `json:"baseCurrency"`
+		QuoteCurrency string `json:"quoteCurrency"`
 	}
 
 	var markets []Symbol
@@ -1720,7 +1217,112 @@ func getCoinbaseMarket(market, rawdata string) ([]string, error) {
 
 	var symbols []string
 	for _, mkt := range markets {
-		symbols = append(symbols, mkt.ID)
+		if strings.HasSuffix(market, "btc") && mkt.QuoteCurrency == "btc" {
+			symbols = append(symbols, mkt.Ticker)
+		} else if strings.HasSuffix(market, "eth") && mkt.QuoteCurrency == "eth" {
+			symbols = append(symbols, mkt.Ticker)
+		} else if strings.HasSuffix(market, "usd") && mkt.QuoteCurrency == "usd" {
+			symbols = append(symbols, mkt.Ticker)
+		}
+	}
+
+	return symbols, err
+}
+
+func getNasdaqMarket(market, rawdata string) ([]string, error) {
+
+	// https://www.nasdaq.com/market-activity/stocks/screener
+
+	type Headers struct {
+		Symbol    string `json:"symbol"`
+		Name      string `json:"name"`
+		LastSale  string `json:"lastsale"`
+		NetChange string `json:"netchange"`
+		PctChange string `json:"pctchange"`
+		MarketCap string `json:"marketCap"`
+	}
+
+	type Row struct {
+		Symbol    string `json:"symbol"`
+		Name      string `json:"name"`
+		LastSale  string `json:"lastsale"`
+		NetChange string `json:"netchange"`
+		PctChange string `json:"pctchange"`
+		MarketCap string `json:"marketCap"`
+		URL       string `json:"url"`
+	}
+
+	type Table struct {
+		AsOf    *string `json:"asOf"`
+		Headers Headers `json:"headers"`
+		Rows    []Row   `json:"rows"`
+	}
+
+	type Status struct {
+		RCode            int     `json:"rCode"`
+		BCodeMessage     *string `json:"bCodeMessage"`
+		DeveloperMessage *string `json:"developerMessage"`
+	}
+
+	type ApiResponse struct {
+		Data    Table   `json:"data"`
+		Message *string `json:"message"`
+		Status  Status  `json:"status"`
+	}
+
+	// Unmarshal the JSON into our structs
+	var apiResponse ApiResponse
+	err := json.Unmarshal([]byte(rawdata), &apiResponse)
+	if err != nil {
+		log.Fatalf("Error parsing JSON: %v", err)
+	}
+
+	var symbols []string
+	for _, row := range apiResponse.Data.Rows {
+		symbols = append(symbols, strings.ToLower(row.Symbol))
+		//fmt.Printf("Symbol: %s\n", row.Symbol)
+	}
+
+	sort.Strings(symbols)
+
+	return symbols, err
+}
+
+func getCoinbaseMarket(market, rawdata string) ([]string, error) {
+
+	type Symbol struct {
+		ID                     string `json:"id"`
+		BaseCurrency           string `json:"base_currency"`
+		QuoteCurrency          string `json:"quote_currency"`
+		QuoteIncrement         string `json:"quote_increment"`
+		BaseIncrement          string `json:"base_increment"`
+		DisplayName            string `json:"display_name"`
+		MinMarketFunds         string `json:"min_market_funds"`
+		MarginEnabled          bool   `json:"margin_enabled"`
+		PostOnly               bool   `json:"post_only"`
+		LimitOnly              bool   `json:"limit_only"`
+		CancelOnly             bool   `json:"cancel_only"`
+		Status                 string `json:"status"`
+		StatusMessage          string `json:"status_message"`
+		TradingDisabled        bool   `json:"trading_disabled"`
+		FxStablecoin           bool   `json:"fx_stablecoin"`
+		MaxSlippagePercentage  string `json:"max_slippage_percentage"`
+		AuctionMode            bool   `json:"auction_mode"`
+		HighBidLimitPercentage string `json:"high_bid_limit_percentage"`
+	}
+
+	var markets []Symbol
+
+	err := json.Unmarshal([]byte(rawdata), &markets)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var symbols []string
+	for _, mkt := range markets {
+		if !mkt.TradingDisabled {
+			symbols = append(symbols, mkt.ID)
+		}
 	}
 
 	sort.Strings(symbols)
@@ -1730,22 +1332,9 @@ func getCoinbaseMarket(market, rawdata string) ([]string, error) {
 
 // NewMarketFile - download a list of market symbols to a file
 func NewMarketFile(market, filename string) error {
-	if market == "allmarkets" {
-		for _, m := range ValidMarkets {
-			filename = m + ".txt"
-			syms, err := NewMarketList(m)
-			if err != nil {
-				Log.Println(err)
-			}
-			ba := []byte(strings.Join(syms, "\n"))
-			ioutil.WriteFile(filename, ba, 0644)
-		}
-		return nil
-	}
 	if !ValidMarket(market) {
 		return fmt.Errorf("invalid market")
 	}
-
 	// default filename
 	if filename == "" {
 		filename = market + ".txt"
@@ -1755,12 +1344,12 @@ func NewMarketFile(market, filename string) error {
 		return err
 	}
 	ba := []byte(strings.Join(syms, "\n"))
-	return ioutil.WriteFile(filename, ba, 0644)
+	return os.WriteFile(filename, ba, 0644)
 }
 
 // NewSymbolsFromFile - read symbols from a file
 func NewSymbolsFromFile(filename string) ([]string, error) {
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return []string{}, err
 	}
@@ -1822,7 +1411,7 @@ func getAnonFTP(addr, port string, dir string, fname string) ([]byte, error) {
 	dconn, err := net.DialTimeout("tcp", addr+":"+strconv.Itoa(dport), timeout)
 	defer dconn.Close()
 
-	contents, err = ioutil.ReadAll(dconn)
+	contents, err = io.ReadAll(dconn)
 	if err != nil {
 		return contents, err
 	}

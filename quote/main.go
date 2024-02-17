@@ -2,9 +2,9 @@
 Package quote is free quote downloader library and cli
 
 Downloads daily/weekly/monthly/yearly historical price quotes from Yahoo
-and daily/intraday data from Tiingo, crypto from Coinbase/Bittrex/Binance
+and daily/intraday data from Tiingo, crypto from Coinbase
 
-Copyright 2019 Mark Chenoweth
+Copyright 2024 Mark Chenoweth
 Licensed under terms of MIT license
 
 */
@@ -14,7 +14,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"time"
 
@@ -36,7 +36,7 @@ Options:
   -infile=<filename>   list of symbols to download
   -outfile=<filename>  output filename
   -period=<period>     1m|3m|5m|15m|30m|1h|2h|4h|6h|8h|12h|d|3d|w|m [default=d]
-  -source=<source>     yahoo|tiingo|tiingo-crypto|coinbase|bittrex|binance [default=yahoo]
+  -source=<source>     yahoo|tiingo|tiingo-crypto|coinbase [default=yahoo]
   -token=<tiingo_tok>  tingo api token [default=TIINGO_API_TOKEN]
   -format=<format>     (csv|json|hs|ami) [default=csv]
   -adjust=<bool>       adjust yahoo prices [default=true]
@@ -47,14 +47,14 @@ Options:
 Note: not all periods work with all sources
 
 Valid markets:
-etfs:       etf
-crypto:     bittrex-btc,bittrex-eth,bittrex-usdt,
-            binance-bnb,binance-btc,binance-eth,binance-usdt,
-            coinbase
+etf,nasdaq,amex,nyse,megacap,largecap,midcap,smallcap,microcap,nanocap,
+telecommunications,health_care,finance,real_estate,consumer_discretionary,
+consumer_staples,industrials,basic_materials,energy,utilities,technology
+coinbase,tiingo-usd,tiingo-btc,tiingo-eth
 `
 
 const (
-	version    = "0.2"
+	version    = "0.3"
 	dateFormat = "2006-01-02"
 )
 
@@ -90,10 +90,8 @@ func checkFlags(flags quoteflags) error {
 	if flags.source != "yahoo" &&
 		flags.source != "tiingo" &&
 		flags.source != "tiingo-crypto" &&
-		flags.source != "coinbase" &&
-		flags.source != "bittrex" &&
-		flags.source != "binance" {
-		return fmt.Errorf("invalid source, must be either 'yahoo', 'tiingo', 'coinbase', 'bittrex', or 'binance'")
+		flags.source != "coinbase" {
+		return fmt.Errorf("invalid source, must be either 'yahoo', 'tiingo', or 'coinbase'")
 	}
 
 	// validate period
@@ -132,29 +130,6 @@ func checkFlags(flags quoteflags) error {
 		return fmt.Errorf("missing token for tiingo-crypto, must be passed or TIINGO_API_TOKEN must be set")
 	}
 
-	if flags.source == "bittrex" && !(flags.period == "1m" || flags.period == "5m" || flags.period == "30m" || flags.period == "1h" || flags.period == "d") {
-		return fmt.Errorf("invalid source for bittrex, must be '1m', '5m', '30m', '1h' or 'd'")
-	}
-
-	if flags.source == "binance" &&
-		!(flags.period == "1m" ||
-			flags.period == "3m" ||
-			flags.period == "5m" ||
-			flags.period == "15m" ||
-			flags.period == "30m" ||
-			flags.period == "1h" ||
-			flags.period == "2h" ||
-			flags.period == "4h" ||
-			flags.period == "6h" ||
-			flags.period == "8h" ||
-			flags.period == "12h" ||
-			flags.period == "d" ||
-			flags.period == "3d" ||
-			flags.period == "w" ||
-			flags.period == "m") {
-		return fmt.Errorf("invalid source for binance, must be '1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', or '1M'")
-	}
-
 	return nil
 }
 
@@ -165,10 +140,13 @@ func setOutput(flags quoteflags) error {
 	} else if flags.log == "stderr" {
 		quote.Log.SetOutput(os.Stderr)
 	} else if flags.log == "discard" {
-		quote.Log.SetOutput(ioutil.Discard)
+		quote.Log.SetOutput(io.Discard)
 	} else {
 		var f *os.File
 		f, err = os.OpenFile(flags.log, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			quote.Log.Println(err)
+		}
 		defer f.Close()
 		quote.Log.SetOutput(f)
 	}
@@ -271,10 +249,6 @@ func outputAll(symbols []string, flags quoteflags) error {
 		quotes, err = quote.NewQuotesFromTiingoCryptoSyms(symbols, from.Format(dateFormat), to.Format(dateFormat), period, flags.token)
 	} else if flags.source == "coinbase" {
 		quotes, err = quote.NewQuotesFromCoinbaseSyms(symbols, from.Format(dateFormat), to.Format(dateFormat), period)
-	} else if flags.source == "bittrex" {
-		quotes, err = quote.NewQuotesFromBittrexSyms(symbols, period)
-	} else if flags.source == "binance" {
-		quotes, err = quote.NewQuotesFromBinanceSyms(symbols, from.Format(dateFormat), to.Format(dateFormat), period)
 	}
 	if err != nil {
 		return err
@@ -308,10 +282,6 @@ func outputIndividual(symbols []string, flags quoteflags) error {
 			q, _ = quote.NewQuoteFromTiingoCrypto(sym, from.Format(dateFormat), to.Format(dateFormat), period, flags.token)
 		} else if flags.source == "coinbase" {
 			q, _ = quote.NewQuoteFromCoinbase(sym, from.Format(dateFormat), to.Format(dateFormat), period)
-		} else if flags.source == "bittrex" {
-			q, _ = quote.NewQuoteFromBittrex(sym, period)
-		} else if flags.source == "binance" {
-			q, _ = quote.NewQuoteFromBinance(sym, from.Format(dateFormat), to.Format(dateFormat), period)
 		}
 		var err error
 		if flags.format == "csv" {
@@ -357,7 +327,7 @@ func main() {
 	flag.StringVar(&flags.start, "start", "", "start date (yyyy[-mm[-dd]])")
 	flag.StringVar(&flags.end, "end", "", "end date (yyyy[-mm[-dd]])")
 	flag.StringVar(&flags.period, "period", "d", "1m|5m|15m|30m|1h|d")
-	flag.StringVar(&flags.source, "source", "yahoo", "yahoo|tiingo|coinbase|bittrex|binance")
+	flag.StringVar(&flags.source, "source", "yahoo", "yahoo|tiingo|coinbase")
 	flag.StringVar(&flags.token, "token", os.Getenv("TIINGO_API_TOKEN"), "tiingo api token")
 	flag.StringVar(&flags.infile, "infile", "", "input filename")
 	flag.StringVar(&flags.outfile, "outfile", "", "output filename")
@@ -392,8 +362,8 @@ func main() {
 
 	// main output
 	if flags.all {
-		err = outputAll(symbols, flags)
+		outputAll(symbols, flags)
 	} else {
-		err = outputIndividual(symbols, flags)
+		outputIndividual(symbols, flags)
 	}
 }
