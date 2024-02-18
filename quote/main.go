@@ -47,7 +47,7 @@ Options:
 Note: not all periods work with all sources
 
 Valid markets:
-etf,nasdaq,amex,nyse,megacap,largecap,midcap,smallcap,microcap,nanocap,
+etf,nasdaq,nasdaq100,amex,nyse,megacap,largecap,midcap,smallcap,microcap,nanocap,
 telecommunications,health_care,finance,real_estate,consumer_discretionary,
 consumer_staples,industrials,basic_materials,energy,utilities,technology
 coinbase,tiingo-usd,tiingo-btc,tiingo-eth

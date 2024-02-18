@@ -65,7 +65,7 @@ Options:
 Note: not all periods work with all sources
 
 Valid markets:
-etf,nasdaq,amex,nyse,megacap,largecap,midcap,smallcap,microcap,nanocap,
+etf,nasdaq,nasdaq100,amex,nyse,megacap,largecap,midcap,smallcap,microcap,nanocap,
 telecommunications,health_care,finance,real_estate,consumer_discretionary,
 consumer_staples,industrials,basic_materials,energy,utilities
 coinbase,tiingo-usd,tiingo-btc,tiingo-eth
@@ -86,7 +86,7 @@ quote -years=1 -source=coinbase BTC-USD
 # downloads 1 year of Yahoo SPY & AAPL history to quotes.csv 
 quote -years=1 -all=true -outfile=quotes.csv spy aapl
 
-# downloads full etf symbol list to etf.txt, also works for nasdaq,nyse,amex
+# downloads full etf symbol list to etf.txt, also works for nasdaq,nasdaq100,nyse,amex
 quote etf
 
 # download fresh etf list and 5 years of etf data all in one file

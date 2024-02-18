@@ -1072,6 +1072,7 @@ func NewEtfFile(filename string) error {
 var ValidMarkets = [...]string{
 	"etf",
 	"nasdaq",
+	"nasdaq100",
 	"amex",
 	"nyse",
 	"megacap",
@@ -1124,6 +1125,8 @@ func NewMarketList(market string) ([]string, error) {
 	switch market {
 	case "nasdaq":
 		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&exchange=NASDAQ"
+	case "nasdaq100":
+		url = "https://api.nasdaq.com/api/quote/list-type/nasdaq100"
 	case "amex":
 		url = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&offset=0&download=true&exchange=AMEX"
 	case "nyse":
@@ -1195,8 +1198,12 @@ func NewMarketList(market string) ([]string, error) {
 		return getCoinbaseMarket(market, newStr)
 	}
 
-	// must be nasdaq market
+	if market == "nasdaq100" {
+		return getNasdaq100Market(market, newStr)
+	}
+
 	return getNasdaqMarket(market, newStr)
+
 }
 
 func getTiingoCryptoMarket(market, rawdata string) ([]string, error) {
@@ -1279,6 +1286,74 @@ func getNasdaqMarket(market, rawdata string) ([]string, error) {
 
 	var symbols []string
 	for _, row := range apiResponse.Data.Rows {
+		symbols = append(symbols, strings.ToLower(row.Symbol))
+		//fmt.Printf("Symbol: %s\n", row.Symbol)
+	}
+
+	sort.Strings(symbols)
+
+	return symbols, err
+}
+
+func getNasdaq100Market(market, rawdata string) ([]string, error) {
+
+	// https://api.nasdaq.com/api/quote/list-type/nasdaq100
+
+	type Headers struct {
+		Symbol    string `json:"symbol"`
+		Name      string `json:"companyName"`
+		MarketCap string `json:"marketCap"`
+		LastSale  string `json:"lastSalePrice"`
+		NetChange string `json:"netChange"`
+		PctChange string `json:"percentageChange"`
+	}
+
+	type Row struct {
+		Symbol        string `json:"symbol"`
+		Sector        string `json:"sector"`
+		Name          string `json:"companyName"`
+		MarketCap     string `json:"marketCap"`
+		LastSalePrice string `json:"lastSalePrice"`
+		NetChange     string `json:"netChange"`
+		PctChange     string `json:"percentageChange"`
+		Delta         string `json:"deltaIndicator"`
+	}
+
+	type Table struct {
+		AsOf    *string `json:"asOf"`
+		Headers Headers `json:"headers"`
+		Rows    []Row   `json:"rows"`
+	}
+
+	type Data struct {
+		TotalRecords int    `json:"totalrecords"`
+		Limit        int    `json:"limit"`
+		Offset       int    `json:"offset"`
+		Date         string `json:"date"`
+		Data         Table  `json:"data"`
+	}
+
+	type Status struct {
+		RCode            int     `json:"rCode"`
+		BCodeMessage     *string `json:"bCodeMessage"`
+		DeveloperMessage *string `json:"developerMessage"`
+	}
+
+	type ApiResponse struct {
+		Data    Data    `json:"data"`
+		Message *string `json:"message"`
+		Status  Status  `json:"status"`
+	}
+
+	// Unmarshal the JSON into our structs
+	var apiResponse ApiResponse
+	err := json.Unmarshal([]byte(rawdata), &apiResponse)
+	if err != nil {
+		log.Fatalf("Error parsing JSON: %v", err)
+	}
+
+	var symbols []string
+	for _, row := range apiResponse.Data.Data.Rows {
 		symbols = append(symbols, strings.ToLower(row.Symbol))
 		//fmt.Printf("Symbol: %s\n", row.Symbol)
 	}
