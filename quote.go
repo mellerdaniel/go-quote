@@ -508,6 +508,8 @@ func NewQuotesFromJSONFile(filename string) (Quotes, error) {
 // NewQuoteFromYahoo - Yahoo historical prices for a symbol
 func NewQuoteFromYahoo(symbol, startDate, endDate string, period Period, adjustQuote bool) (Quote, error) {
 
+	var resp *http.Response
+
 	if period != Daily {
 		Log.Printf("Yahoo intraday data no longer supported\n")
 		return NewQuote("", 0), errors.New("Yahoo intraday data no longer supported")
@@ -525,7 +527,7 @@ func NewQuoteFromYahoo(symbol, startDate, endDate string, period Period, adjustQ
 		return NewQuote("", 0), err
 	}
 	initReq.Header.Set("User-Agent", "Mozilla/5.0 (X11; U; Linux i686) Gecko/20071127 Firefox/2.0.0.11")
-	resp, _ := client.Do(initReq)
+	client.Do(initReq)
 
 	url := fmt.Sprintf(
 		"https://query1.finance.yahoo.com/v7/finance/download/%s?period1=%d&period2=%d&interval=1d&events=history&corsDomain=finance.yahoo.com",
@@ -690,7 +692,7 @@ func tiingoDaily(symbol string, from, to time.Time, token string) (Quote, error)
 		AdjHigh     float64 `json:"adjHigh"`
 		AdjLow      float64 `json:"adjLow"`
 		AdjOpen     float64 `json:"adjOpen"`
-		AdjVolume   int64   `json:"adjVolume"`
+		AdjVolume   float64 `json:"adjVolume"`
 		Close       float64 `json:"close"`
 		Date        string  `json:"date"`
 		DivCash     float64 `json:"divCash"`
@@ -698,7 +700,7 @@ func tiingoDaily(symbol string, from, to time.Time, token string) (Quote, error)
 		Low         float64 `json:"low"`
 		Open        float64 `json:"open"`
 		SplitFactor float64 `json:"splitFactor"`
-		Volume      int64   `json:"volume"`
+		Volume      float64 `json:"volume"`
 	}
 
 	var tiingo []tquote
@@ -922,8 +924,7 @@ func NewQuoteFromCoinbase(symbol, startDate, endDate string, period Period) (Quo
 	quote.Symbol = symbol
 
 	maxBars := 200
-	var step time.Duration
-	step = time.Second * time.Duration(granularity)
+	var step = time.Second * time.Duration(granularity)
 
 	startBar := start
 	endBar := startBar.Add(time.Duration(maxBars) * step)
@@ -1175,7 +1176,7 @@ func NewMarketList(market string) ([]string, error) {
 		url = "https://api.pro.coinbase.com/products"
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("User-Agent", "markcheno/go-quote")
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json; charset=utf-8")
@@ -1482,9 +1483,11 @@ func getAnonFTP(addr, port string, dir string, fname string) ([]byte, error) {
 	dport := l1*256 + l2
 
 	_ = conn.PrintfLine("RETR %s", fname)
-	_, _, err = conn.ReadResponse(1)
+	_, _, _ = conn.ReadResponse(1)
 	dconn, err := net.DialTimeout("tcp", addr+":"+strconv.Itoa(dport), timeout)
-	defer dconn.Close()
+	if err == nil {
+		defer dconn.Close()
+	}
 
 	contents, err = io.ReadAll(dconn)
 	if err != nil {
