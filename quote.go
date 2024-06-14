@@ -12,6 +12,7 @@ package quote
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -520,6 +521,9 @@ func NewQuoteFromYahoo(symbol, startDate, endDate string, period Period, adjustQ
 
 	client := &http.Client{
 		Timeout: ClientTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
 	}
 
 	initReq, err := http.NewRequest("GET", "https://finance.yahoo.com", nil)
